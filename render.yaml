@@ -1,0 +1,46 @@
+services:
+  - type: web
+    name: discord-bot-gs
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DISCORD_TOKEN
+        sync: false
+      - key: CLIENT_ID
+        sync: false
+      - key: GUILD_ID
+        sync: false
+      - key: ROLE_VETERANS
+        sync: false
+      - key: ROLE_HAUTS_GRADES
+        sync: false
+      - key: ROLE_GESTION_STAFF
+        sync: false
+      - key: ROLE_SENIOR
+        sync: false
+      - key: ROLE_VETERAN
+        sync: false
+      - key: ROLE_RESPONSABLE
+        sync: false
+      - key: ROLE_BRAS_DROIT
+        sync: false
+      - key: ROLE_GERANT
+        sync: false
+      - key: CATEGORY_RAPPORTS_PERSONNELS
+        sync: false
+      - key: CATEGORY_SURVEILLANCES
+        sync: false
+      - key: CHANNEL_PANEL
+        sync: false
+      - key: CHANNEL_LOGS
+        sync: false
+      - key: CHANNEL_RECAP
+        sync: false
+      - key: CHANNEL_LISTE_GS
+        sync: false
+      - key: PORT
+        value: 8080
