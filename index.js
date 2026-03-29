@@ -1,10 +1,13 @@
 require('dotenv').config();
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
-const keep_alive = require('./keep_alive.js')
+const keep_alive = require('./keep_alive.js');
 const fs   = require('fs');
 const path = require('path');
 const { token } = require('./config');
 const { startWeeklyTask } = require('./tasks/weeklyPing');
+
+// Démarrer le serveur HTTP pour Render
+keep_alive();
 
 const client = new Client({
     intents: [
