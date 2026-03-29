@@ -111,7 +111,11 @@ async function sendWeeklyPings(client) {
                 new ButtonBuilder().setCustomId(`rapport_${ow.id}`).setLabel('Rapport').setStyle(ButtonStyle.Secondary),
             );
 
-            await channel.send({ embeds: [embed], components: [row] });
+            await channel.send({
+    content: `<@${ow.id}>`,
+    embeds: [embed],
+    components: [row],
+});
         } catch (err) {
             console.error(`[WEEKLY] Erreur sur ${channel.name} :`, err);
         }
