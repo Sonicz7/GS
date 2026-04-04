@@ -380,8 +380,6 @@ footer{text-align:center;padding:24px;color:var(--text-muted);font-size:12px;bor
 </html>`;
 }
 
-// Scheduler persistant : sauvegarde l'etat dans fired.json
-// Au redemarrage Render, le bot relit le fichier et sait ce qu'il a deja envoye
 const fs = require('fs');
 const FIRED_PATH = './fired.json';
 
@@ -405,38 +403,46 @@ function getWeekKey() {
     return monday.getTime();
 }
 
+function msUntilTime(hour, minute) {
+    const now = new Date();
+    const target = new Date();
+    target.setHours(hour, minute, 0, 0);
+    const diff = target.getTime() - now.getTime();
+    return diff > 0 ? diff : 0;
+}
+
 function startWeeklyTask(client) {
     const SAT = 6;
     const fired = loadFired();
+    const now = new Date();
+    const weekKey = getWeekKey();
+
+    // ── AUJOURD'HUI : ping force a 11h30 quoi qu'il arrive ──────────────────
+    if (now.getDay() === SAT) {
+        const pingKey = `${weekKey}-10`;
+        // Supprimer du fired.json au cas ou il aurait ete marque par erreur
+        fired.delete(pingKey);
+        saveFired(fired);
+
+        const delay = msUntilTime(11, 30);
+        console.log(`[WEEKLY] Ping force a 11h30 — dans ${Math.round(delay / 60000)} min`);
+        setTimeout(() => {
+            console.log('[WEEKLY] Envoi du ping 11h30 !');
+            fired.add(pingKey);
+            saveFired(fired);
+            sendWeeklyPings(client).catch(err => console.error('[WEEKLY] Erreur ping force :', err));
+        }, delay);
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     const tasks = [
-        // EXCEPTION cette semaine : le ping 10h part des que le bot demarre (meme en retard)
-        { hour: 10, sendIfLate: true,  fn: () => sendWeeklyPings(client)  },
-        { hour: 16, sendIfLate: false, fn: () => sendReminderAt16(client) },
-        { hour: 17, sendIfLate: false, fn: () => sendRecapAt17(client)    },
-        { hour: 18, sendIfLate: false, fn: () => sendRecapAt18(client)    },
+        { hour: 10, fn: () => sendWeeklyPings(client)  },
+        { hour: 16, fn: () => sendReminderAt16(client) },
+        { hour: 17, fn: () => sendRecapAt17(client)    },
+        { hour: 18, fn: () => sendRecapAt18(client)    },
     ];
 
-    // Au demarrage : verifier immediatement si une tache est en retard
-    const nowBoot = new Date();
-    const weekKeyBoot = getWeekKey();
-    if (nowBoot.getDay() === SAT) {
-        for (const task of tasks) {
-            const key = `${weekKeyBoot}-${task.hour}`;
-            if (fired.has(key)) continue;
-            if (nowBoot.getHours() < task.hour) continue;
-            if (!task.sendIfLate) continue; // taches strictes : on ne rattrape pas le retard
-            // Tache en retard a rattraper : on envoie dans les 30 secondes
-            console.log(`[WEEKLY] Rattrapage tache ${task.hour}h (en retard) — envoi dans 30s`);
-            fired.add(key);
-            saveFired(fired);
-            setTimeout(() => {
-                task.fn().catch(err => console.error(`[WEEKLY] Erreur rattrapage ${task.hour}h :`, err));
-            }, 30_000);
-        }
-    }
-
-    // Verification toutes les minutes
+    // Verification toutes les minutes pour les semaines suivantes
     setInterval(() => {
         const now = new Date();
         const weekKey = getWeekKey();
@@ -453,10 +459,7 @@ function startWeeklyTask(client) {
             const key = `${weekKey}-${task.hour}`;
             if (fired.has(key)) continue;
             if (now.getHours() < task.hour) continue;
-            // Taches strictes : fenetre de 5 min max
-            if (!task.sendIfLate && now.getMinutes() > 5 && now.getHours() === task.hour) continue;
-            // A partir de la semaine prochaine, 10h redevient strict
-            task.sendIfLate = false;
+            if (now.getHours() === task.hour && now.getMinutes() > 5) continue;
 
             fired.add(key);
             saveFired(fired);
@@ -465,7 +468,7 @@ function startWeeklyTask(client) {
         }
     }, 60_000);
 
-    console.log('[WEEKLY] Scheduler persistant demarre');
+    console.log('[WEEKLY] Scheduler demarre — ping force a 11h30 aujourd\'hui');
 }
 
 module.exports = { startWeeklyTask, getCompletion };
