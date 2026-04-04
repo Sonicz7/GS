@@ -4,7 +4,10 @@ const { getCompletion } = require('../tasks/weeklyPing');
 const { getSurveillanceCounts } = require('../utils/surveillance');
 
 const MODELE_RAPPORT_SURVEILLANCE =
-`📋 **Rapport de surveillance**
+`📋 **Rapport de surveillance**await interaction.reply({
+    embeds: [...],
+    ephemeral: true,
+});
 Date : \`JJ/MM/AAAA\`
 Heure : \`HH:MM\`
 
@@ -163,7 +166,6 @@ async function startQuestionnaire(interaction) {
                 .setColor(0x2260da)
                 .setFooter({ text: 'Rapport hebdomadaire' }),
         ],
-        ephemeral: true,
     });
 }
 
@@ -200,13 +202,9 @@ async function handleQuestionnaireReply(message, client) {
             .setColor(0x2260da)
             .setFooter({ text: session.type === 'rapport' ? 'Rapport hebdomadaire' : 'Stats & Heures de voc' });
 
-        try {
-            const dm = await message.author.createDM();
-            await dm.send({ embeds: [embed] });
-        } catch {
-            const sent = await message.channel.send({ embeds: [embed] });
-            setTimeout(() => sent.delete().catch(() => {}), 30000);
-        }
+        const guild         = client.guilds.cache.get(session.guildId);
+const ticketChannel = guild?.channels.cache.get(session.channelId);
+await (ticketChannel ?? message.channel).send({ embeds: [embed] });
         return true;
     }
 
