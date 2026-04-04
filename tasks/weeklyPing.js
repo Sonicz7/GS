@@ -98,15 +98,19 @@ async function sendWeeklyPings(client) {
     const category = guild.channels.cache.get(categories.rapportsPersonnels);
     if (!category) return console.warn('[WEEKLY] Catégorie rapports introuvable.');
 
+    // Charger tous les membres pour que le cache soit complet
+    await guild.members.fetch();
+
     const rapportChannels = guild.channels.cache.filter(c => c.parentId === category.id && c.name.startsWith('rp-'));
-    if (!rapportChannels.size) return;
+    if (!rapportChannels.size) return console.warn('[WEEKLY] Aucun salon rp- trouvé.');
 
     const week = getWeekLabel();
+    console.log(`[WEEKLY] ${rapportChannels.size} salon(s) rp- trouvé(s)`);
 
     for (const [, channel] of rapportChannels) {
         try {
             const ow = getMemberOverwrite(channel, guild);
-            if (!ow) continue;
+            if (!ow) { console.warn(`[WEEKLY] Pas d'overwrite membre dans ${channel.name}`); continue; }
 
             const embed = new EmbedBuilder()
                 .setTitle(`Récap hebdomadaire — ${week}`)
@@ -127,6 +131,7 @@ async function sendWeeklyPings(client) {
                 embeds: [embed],
                 components: [row],
             });
+            console.log(`[WEEKLY] Ping envoyé dans ${channel.name}`);
         } catch (err) {
             console.error(`[WEEKLY] Erreur sur ${channel.name} :`, err);
         }
@@ -141,6 +146,8 @@ async function sendReminderAt16(client) {
 
     const category = guild.channels.cache.get(categories.rapportsPersonnels);
     if (!category) return;
+
+    await guild.members.fetch();
 
     const rapportChannels = guild.channels.cache.filter(c => c.parentId === category.id && c.name.startsWith('rp-'));
 
@@ -183,6 +190,8 @@ async function sendRecapAt17(client) {
 
     const category = guild.channels.cache.get(categories.rapportsPersonnels);
     if (!category) return;
+
+    await guild.members.fetch();
 
     const rapportChannels = guild.channels.cache.filter(c => c.parentId === category.id && c.name.startsWith('rp-'));
     const lines = [];
@@ -400,7 +409,6 @@ function startWeeklyTask(client) {
         const now = getNowParis();
         const weekKey = getWeekKey();
 
-        // Nettoyer les anciennes semaines
         for (const k of fired) {
             if (Number(k.split('-')[0]) < weekKey) fired.delete(k);
         }
@@ -419,7 +427,6 @@ function startWeeklyTask(client) {
         }
     }
 
-    // Au demarrage puis toutes les minutes
     setTimeout(checkTasks, 5_000);
     setInterval(checkTasks, 60_000);
 
