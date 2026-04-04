@@ -380,11 +380,20 @@ footer{text-align:center;padding:24px;color:var(--text-muted);font-size:12px;bor
 </html>`;
 }
 
-// ── Scheduler robuste (résiste aux redémarrages Render Free) ─────────────────
-// Au lieu d'un setTimeout long (détruit si le process dort/redémarre),
-// on vérifie chaque minute si une tâche doit s'exécuter.
-// fired garde en mémoire les tâches déjà déclenchées cette semaine.
-const fired = new Set();
+// Scheduler persistant : sauvegarde l'etat dans fired.json
+// Au redemarrage Render, le bot relit le fichier et sait ce qu'il a deja envoye
+const fs = require('fs');
+const FIRED_PATH = './fired.json';
+
+function loadFired() {
+    try { return new Set(JSON.parse(fs.readFileSync(FIRED_PATH, 'utf-8'))); }
+    catch { return new Set(); }
+}
+
+function saveFired(fired) {
+    try { fs.writeFileSync(FIRED_PATH, JSON.stringify([...fired]), 'utf-8'); }
+    catch (e) { console.error('[WEEKLY] Impossible de sauvegarder fired.json :', e); }
+}
 
 function getWeekKey() {
     const now = new Date();
@@ -393,65 +402,70 @@ function getWeekKey() {
     const monday = new Date(now);
     monday.setDate(now.getDate() + diff);
     monday.setHours(0, 0, 0, 0);
-    return monday.getTime(); // clé unique par semaine
+    return monday.getTime();
 }
 
 function startWeeklyTask(client) {
     const SAT = 6;
+    const fired = loadFired();
+
     const tasks = [
-        { hour: 10, fn: () => sendWeeklyPings(client)    },
-        { hour: 16, fn: () => sendReminderAt16(client)   },
-        { hour: 17, fn: () => sendRecapAt17(client)      },
-        { hour: 18, fn: () => sendRecapAt18(client)      },
+        // EXCEPTION cette semaine : le ping 10h part des que le bot demarre (meme en retard)
+        { hour: 10, sendIfLate: true,  fn: () => sendWeeklyPings(client)  },
+        { hour: 16, sendIfLate: false, fn: () => sendReminderAt16(client) },
+        { hour: 17, sendIfLate: false, fn: () => sendRecapAt17(client)    },
+        { hour: 18, sendIfLate: false, fn: () => sendRecapAt18(client)    },
     ];
 
-    // ── Exception aujourd'hui : ping 10h déclenché à 11h20 ───────────────────
-    const now = new Date();
-    const weekKey = getWeekKey();
-    const pingKey = `${weekKey}-10`;
-    const isThisSaturday = now.getDay() === SAT;
-    const pingNotYetSent = !fired.has(pingKey);
-
-    if (isThisSaturday && pingNotYetSent) {
-        // Calcul du délai jusqu'à 11h20 aujourd'hui
-        const target = new Date();
-        target.setHours(11, 20, 0, 0);
-        const delay = Math.max(0, target.getTime() - now.getTime());
-
-        console.log(`[WEEKLY] Exception aujourd'hui — ping 10h déclenché dans ${Math.round(delay/60000)} min (à 11h20)`);
-        setTimeout(() => {
-            if (fired.has(pingKey)) return; // sécurité double déclenchement
-            fired.add(pingKey);
-            sendWeeklyPings(client).catch(err => console.error('[WEEKLY] Erreur ping 10h :', err));
-        }, delay);
+    // Au demarrage : verifier immediatement si une tache est en retard
+    const nowBoot = new Date();
+    const weekKeyBoot = getWeekKey();
+    if (nowBoot.getDay() === SAT) {
+        for (const task of tasks) {
+            const key = `${weekKeyBoot}-${task.hour}`;
+            if (fired.has(key)) continue;
+            if (nowBoot.getHours() < task.hour) continue;
+            if (!task.sendIfLate) continue; // taches strictes : on ne rattrape pas le retard
+            // Tache en retard a rattraper : on envoie dans les 30 secondes
+            console.log(`[WEEKLY] Rattrapage tache ${task.hour}h (en retard) — envoi dans 30s`);
+            fired.add(key);
+            saveFired(fired);
+            setTimeout(() => {
+                task.fn().catch(err => console.error(`[WEEKLY] Erreur rattrapage ${task.hour}h :`, err));
+            }, 30_000);
+        }
     }
-    // ─────────────────────────────────────────────────────────────────────────
 
+    // Verification toutes les minutes
     setInterval(() => {
-        const now     = new Date();
+        const now = new Date();
         const weekKey = getWeekKey();
 
-        if (now.getDay() !== SAT) return; // pas samedi
+        if (now.getDay() !== SAT) return;
+
+        // Nettoyer les anciennes semaines
+        for (const k of fired) {
+            const parts = k.split('-');
+            if (Number(parts[0]) < weekKey) fired.delete(k);
+        }
 
         for (const task of tasks) {
             const key = `${weekKey}-${task.hour}`;
-            if (fired.has(key)) continue;                    // déjà fait cette semaine
-            if (now.getHours() < task.hour) continue;        // pas encore l'heure
-            if (now.getHours() === task.hour && now.getMinutes() > 5) continue; // fenêtre de 5 min passée
+            if (fired.has(key)) continue;
+            if (now.getHours() < task.hour) continue;
+            // Taches strictes : fenetre de 5 min max
+            if (!task.sendIfLate && now.getMinutes() > 5 && now.getHours() === task.hour) continue;
+            // A partir de la semaine prochaine, 10h redevient strict
+            task.sendIfLate = false;
 
             fired.add(key);
-            console.log(`[WEEKLY] Déclenchement tâche ${task.hour}h — semaine ${weekKey}`);
-            task.fn().catch(err => console.error(`[WEEKLY] Erreur tâche ${task.hour}h :`, err));
+            saveFired(fired);
+            console.log(`[WEEKLY] Declenchement tache ${task.hour}h — semaine ${weekKey}`);
+            task.fn().catch(err => console.error(`[WEEKLY] Erreur tache ${task.hour}h :`, err));
         }
+    }, 60_000);
 
-        // Nettoyage des anciennes semaines dans fired
-        for (const k of fired) {
-            const [kWeek] = k.split('-');
-            if (Number(kWeek) < weekKey) fired.delete(k);
-        }
-    }, 60_000); // vérifie toutes les minutes
-
-    console.log('[WEEKLY] Scheduler toutes-les-minutes démarré ✅');
+    console.log('[WEEKLY] Scheduler persistant demarre');
 }
 
 module.exports = { startWeeklyTask, getCompletion };
