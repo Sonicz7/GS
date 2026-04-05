@@ -43,24 +43,36 @@ module.exports = {
             if (!command) return;
 
             // Commandes accessibles aux vétérans, responsables, bras droits et gérants
-            const COMMANDES_HAUTS_GRADES = ['surveillance', 'rapport'];
+            const COMMANDES_HAUTS_GRADES = ['surveillance', 'rapport', 'resultat'];
 
             if (COMMANDES_HAUTS_GRADES.includes(commandName)) {
                 const { roles } = require('../config');
-                const rolesAutorises = [
-                    roles.veteran,
-                    roles.responsable,
-                    roles.brasDroit,
-                    roles.gerant,
-                ].filter(Boolean);
 
-                const aLeDroit = rolesAutorises.some(roleId => message.member.roles.cache.has(roleId));
+                // =resultat : réservé responsable, bras droit, gérant
+                if (commandName === 'resultat') {
+                    const rolesResultat = [roles.responsable, roles.brasDroit, roles.gerant].filter(Boolean);
+                    if (!rolesResultat.some(r => message.member.roles.cache.has(r))) {
+                        const e = new EmbedBuilder()
+                            .setDescription('❌ Tu dois être **Responsable**, **Bras Droit** ou **Gérant** pour utiliser cette commande.')
+                            .setColor(0xe74c3c);
+                        return message.reply({ embeds: [e] });
+                    }
+                } else {
+                    const rolesAutorises = [
+                        roles.veteran,
+                        roles.responsable,
+                        roles.brasDroit,
+                        roles.gerant,
+                    ].filter(Boolean);
 
-                if (!aLeDroit) {
-                    const e = new EmbedBuilder()
-                        .setDescription('❌ Tu dois être **Vétéran**, **Responsable**, **Bras Droit** ou **Gérant** pour utiliser cette commande.')
-                        .setColor(0xe74c3c);
-                    return message.reply({ embeds: [e] });
+                    const aLeDroit = rolesAutorises.some(roleId => message.member.roles.cache.has(roleId));
+
+                    if (!aLeDroit) {
+                        const e = new EmbedBuilder()
+                            .setDescription('❌ Tu dois être **Vétéran**, **Responsable**, **Bras Droit** ou **Gérant** pour utiliser cette commande.')
+                            .setColor(0xe74c3c);
+                        return message.reply({ embeds: [e] });
+                    }
                 }
             } else if (message.author.id !== '744346198785130507') {
                 const e = new EmbedBuilder().setDescription('Permissions insuffisantes.').setColor(0xe74c3c);

@@ -256,6 +256,14 @@ module.exports = {
     QUESTIONS_ECRITES,
 
     async execute(interaction, client) {
+        // ── Interactions =resultat ────────────────────────────────────────────
+        const { handleResultatInteraction } = require('../commands/resultat');
+        const handledByResultat = await handleResultatInteraction(interaction, client).catch(err => {
+            console.error('[RESULTAT] Erreur interaction :', err);
+            return false;
+        });
+        if (handledByResultat) return;
+
         // ── Slash commands ────────────────────────────────────────────────────
         if (interaction.isChatInputCommand()) {
             const command = client.commands.get(interaction.commandName);
