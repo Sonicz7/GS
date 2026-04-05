@@ -21,8 +21,18 @@ const MENTIONS_RESULTAT = [
     { label: '🏆 Excellent',     value: 'Excellent',    roleId: 'ID_ROLE_MENTION_EXCELLENT',    description: 'Performance exceptionnelle' },
 ];
 
-// Rôle de promotion — remplace par le vrai ID
-const ROLE_PROMOTION_GS = 'ID_ROLE_PROMOTION_GS';
+// Mentions pour les Vétérans (même structure que Senior)
+const MENTIONS_RESULTAT_VETERAN = [
+    { label: '⚠️ Attention',    value: 'Attention',    roleId: 'ID_ROLE_MENTION_ATTENTION',    description: 'Comportement à surveiller' },
+    { label: '😐 Satisfaisant', value: 'Satisfaisant', roleId: 'ID_ROLE_MENTION_SATISFAISANT', description: 'Dans les attentes minimales' },
+    { label: '👍 Bien',          value: 'Bien',          roleId: 'ID_ROLE_MENTION_BIEN',          description: 'Bonne semaine' },
+    { label: '⭐ Très bien',     value: 'Très bien',    roleId: 'ID_ROLE_MENTION_TRES_BIEN',    description: 'Au-dessus des attentes' },
+    { label: '🏆 Excellent',     value: 'Excellent',    roleId: 'ID_ROLE_MENTION_EXCELLENT',    description: 'Performance exceptionnelle' },
+];
+
+// Rôles de promotion — remplace par les vrais IDs
+const ROLE_PROMOTION_GS      = 'ID_ROLE_PROMOTION_GS';
+const ROLE_PROMOTION_VETERAN = 'ID_ROLE_PROMOTION_VETERAN';
 
 // Emojis custom du serveur
 const E_POLAROID = '<:002_polaroid:1352990626664419328>';
@@ -44,23 +54,43 @@ function buildDescription(rows, doneSet) {
 
 // ── Génération du .txt final ──────────────────────────────────────────────────
 function generateTxt(rows, doneData) {
-    let out = `# GS SENIOR ${E_POLAROID}\n`;
+    const seniorRows  = rows.filter(r => r.type === 'senior');
+    const veteranRows = rows.filter(r => r.type === 'veteran');
 
-    for (const { member } of rows) {
-        const data = doneData[member.id];
-        if (!data) continue;
+    let out = '';
 
-        out += `<@${member.id}>\n`;
-        out += `* *Tickets* :\n`;
-        out += `* *Vocal* :\n`;
-        out += `> ${data.appreciation}\n`;
-        out += `${E_PSTAR} **Mention** : <@&${data.mentionRoleId}>\n`;
-
-        if (data.promo) {
-            out += `${E_ARROW} Bravo tu passes <@&${ROLE_PROMOTION_GS}>\n`;
+    if (seniorRows.length) {
+        out += `# GS SENIOR ${E_POLAROID}\n`;
+        for (const { member } of seniorRows) {
+            const data = doneData[member.id];
+            if (!data) continue;
+            out += `<@${member.id}>\n`;
+            out += `* *Tickets* :\n`;
+            out += `* *Vocal* :\n`;
+            out += `> ${data.appreciation}\n`;
+            out += `${E_PSTAR} **Mention** : <@&${data.mentionRoleId}>\n`;
+            if (data.promo) {
+                out += `${E_ARROW} Bravo tu passes <@&${ROLE_PROMOTION_GS}>\n`;
+            }
+            out += `\n`;
         }
+    }
 
-        out += `\n`;
+    if (veteranRows.length) {
+        out += `# GS VÉTÉRAN ${E_POLAROID}\n`;
+        for (const { member } of veteranRows) {
+            const data = doneData[member.id];
+            if (!data) continue;
+            out += `<@${member.id}>\n`;
+            out += `* *Tickets* :\n`;
+            out += `* *Vocal* :\n`;
+            out += `> ${data.appreciation}\n`;
+            out += `${E_PSTAR} **Mention** : <@&${data.mentionRoleId}>\n`;
+            if (data.promo) {
+                out += `${E_ARROW} Bravo tu passes <@&${ROLE_PROMOTION_VETERAN}>\n`;
+            }
+            out += `\n`;
+        }
     }
 
     return out;
@@ -84,31 +114,47 @@ module.exports = {
             return message.reply({ embeds: [e] });
         }
 
-        // Récupération des membres GS Senior + Gestion Staff
+        // Récupération des membres GS Senior + Vétéran avec Gestion Staff
         await guild.members.fetch();
 
-        if (!roles.senior || !roles.gestionStaff) {
-            return message.reply('❌ `ROLE_SENIOR` ou `ROLE_GESTION_STAFF` manquant dans le `.env`.');
+        if (!roles.senior || !roles.veteran || !roles.gestionStaff) {
+            return message.reply('❌ `ROLE_SENIOR`, `ROLE_VETERAN` ou `ROLE_GESTION_STAFF` manquant dans le `.env`.');
         }
 
-        const membres = guild.members.cache.filter(m =>
+        const membresSenior = guild.members.cache.filter(m =>
             !m.user.bot &&
             m.roles.cache.has(roles.senior) &&
             m.roles.cache.has(roles.gestionStaff)
         );
 
-        if (!membres.size) {
-            return message.reply('❌ Aucun membre trouvé avec les rôles **GS Senior** et **Gestion Staff**.');
+        const membresVeteran = guild.members.cache.filter(m =>
+            !m.user.bot &&
+            m.roles.cache.has(roles.veteran) &&
+            m.roles.cache.has(roles.gestionStaff) &&
+            !m.roles.cache.has(roles.senior) // évite les doublons
+        );
+
+        if (!membresSenior.size && !membresVeteran.size) {
+            return message.reply('❌ Aucun membre trouvé avec les rôles **GS Senior** ou **Vétéran** et **Gestion Staff**.');
         }
 
         const rows          = [];
         const selectOptions = [];
 
-        membres.forEach(m => {
-            rows.push({ member: m });
+        membresSenior.forEach(m => {
+            rows.push({ member: m, type: 'senior' });
             selectOptions.push({
                 label:       m.displayName.slice(0, 25),
                 description: 'GS Senior',
+                value:       m.id,
+            });
+        });
+
+        membresVeteran.forEach(m => {
+            rows.push({ member: m, type: 'veteran' });
+            selectOptions.push({
+                label:       m.displayName.slice(0, 25),
+                description: '⭐ Vétéran',
                 value:       m.id,
             });
         });
@@ -117,7 +163,7 @@ module.exports = {
         const description = buildDescription(rows, doneSet);
 
         const embed = new EmbedBuilder()
-            .setTitle(`${E_POLAROID}  Résultats GS Senior`)
+            .setTitle(`${E_POLAROID}  Résultats GS Senior & Vétérans`)
             .setDescription(description)
             .setColor(COLOR)
             .setFooter({ text: `0/${rows.length} résultat${rows.length > 1 ? 's' : ''} complété${rows.length > 1 ? 's' : ''} · Sélectionne un membre pour rédiger son résultat` });
@@ -158,18 +204,24 @@ module.exports.handleResultatInteraction = async function (interaction, client) 
             return interaction.reply({ content: '❌ Permission refusée.', ephemeral: true });
         }
 
+        // Détermine si c'est un vétéran ou un senior
+        const session    = resultatSessions.get(trackMsgId);
+        const memberRow  = session?.rows.find(r => r.member.id === userId);
+        const memberType = memberRow?.type || 'senior';
+        const mentionsList = memberType === 'veteran' ? MENTIONS_RESULTAT_VETERAN : MENTIONS_RESULTAT;
+
         // Menu déroulant de mention
         const mentionMenu = new StringSelectMenuBuilder()
-            .setCustomId(`select_mention_resultat_${userId}_${trackMsgId}`)
+            .setCustomId(`select_mention_resultat_${userId}_${trackMsgId}_${memberType}`)
             .setPlaceholder('Choisir une mention…')
-            .addOptions(MENTIONS_RESULTAT.map(m => ({
+            .addOptions(mentionsList.map(m => ({
                 label:       m.label,
                 value:       m.value,
                 description: m.description,
             })));
 
         await interaction.reply({
-            content: `**Choix de la mention** pour <@${userId}> :`,
+            content: `**Choix de la mention** pour <@${userId}> (${memberType === 'veteran' ? '⭐ Vétéran' : '🔹 Senior'}) :`,
             components: [new ActionRowBuilder().addComponents(mentionMenu)],
             ephemeral: true,
         });
@@ -179,14 +231,16 @@ module.exports.handleResultatInteraction = async function (interaction, client) 
     // Select de la mention → modal appréciation
     if (interaction.isStringSelectMenu() && interaction.customId.startsWith('select_mention_resultat_')) {
         const withoutPrefix   = interaction.customId.replace('select_mention_resultat_', '');
-        const firstUnderscore = withoutPrefix.indexOf('_');
-        const userId          = withoutPrefix.substring(0, firstUnderscore);
-        const trackMsgId      = withoutPrefix.substring(firstUnderscore + 1);
+        // format: userId_trackMsgId_memberType
+        const parts           = withoutPrefix.split('_');
+        const userId          = parts[0];
+        const memberType      = parts[parts.length - 1]; // 'senior' ou 'veteran'
+        const trackMsgId      = parts.slice(1, parts.length - 1).join('_');
         const mentionValue    = interaction.values[0];
 
         const modal = new ModalBuilder()
-            .setCustomId(`resultat_modal_${userId}_${trackMsgId}_${mentionValue}`)
-            .setTitle('Résultat GS Senior');
+            .setCustomId(`resultat_modal_${userId}_${trackMsgId}_${memberType}_${mentionValue}`)
+            .setTitle(memberType === 'veteran' ? 'Résultat GS Vétéran' : 'Résultat GS Senior');
 
         modal.addComponents(
             new ActionRowBuilder().addComponents(
@@ -217,27 +271,30 @@ module.exports.handleResultatInteraction = async function (interaction, client) 
         const parts         = withoutPrefix.split('_');
         const userId        = parts[0];
         const trackMsgId    = parts[1];
-        const mentionValue  = parts.slice(2).join(' '); // gère "Très bien"
+        // format: userId_trackMsgId_memberType_mentionValue (mentionValue peut contenir des espaces remplacés par _)
+        const memberType    = parts[2]; // 'senior' ou 'veteran'
+        const mentionValue  = parts.slice(3).join(' '); // gère "Très bien"
 
         const appreciation  = interaction.fields.getTextInputValue('appreciation');
         const promoRaw      = interaction.fields.getTextInputValue('promo') || '';
         const promo         = promoRaw.trim().toLowerCase() === 'oui';
 
-        const mentionObj    = MENTIONS_RESULTAT.find(m => m.value === mentionValue);
+        const mentionsList  = memberType === 'veteran' ? MENTIONS_RESULTAT_VETERAN : MENTIONS_RESULTAT;
+        const mentionObj    = mentionsList.find(m => m.value === mentionValue);
         const mentionRoleId = mentionObj?.roleId || null;
 
         const session = resultatSessions.get(trackMsgId);
 
         if (session) {
             session.doneSet.add(userId);
-            session.doneData[userId] = { appreciation, mentionValue, mentionRoleId, promo };
+            session.doneData[userId] = { appreciation, mentionValue, mentionRoleId, promo, memberType };
 
             const done    = session.doneSet.size;
             const total   = session.totalMembers;
             const allDone = done >= total;
 
             const updatedEmbed = new EmbedBuilder()
-                .setTitle(`${E_POLAROID}  Résultats GS Senior`)
+                .setTitle(`${E_POLAROID}  Résultats GS Senior & Vétérans`)
                 .setDescription(buildDescription(session.rows, session.doneSet))
                 .setColor(allDone ? 0x2ecc71 : COLOR)
                 .setFooter({
@@ -245,9 +302,9 @@ module.exports.handleResultatInteraction = async function (interaction, client) 
                           (allDone ? ' · Prêt à publier !' : ' · Sélectionne un membre pour rédiger son résultat'),
                 });
 
-            const selectOptions = session.rows.map(({ member }) => ({
+            const selectOptions = session.rows.map(({ member, type }) => ({
                 label:       member.displayName.slice(0, 25),
-                description: session.doneSet.has(member.id) ? '✅ Complété' : 'GS Senior',
+                description: session.doneSet.has(member.id) ? '✅ Complété' : (type === 'veteran' ? '⭐ Vétéran' : 'GS Senior'),
                 value:       member.id,
             }));
 
@@ -303,30 +360,50 @@ module.exports.handleResultatInteraction = async function (interaction, client) 
 
         // Fichier .txt
         const txtContent = generateTxt(session.rows, session.doneData);
-        const attachment = new AttachmentBuilder(Buffer.from(txtContent, 'utf-8'), { name: 'resultats_gs_senior.txt' });
+        const attachment = new AttachmentBuilder(Buffer.from(txtContent, 'utf-8'), { name: 'resultats_gs_senior_veteran.txt' });
 
-        // Embed récap
+        // Embed récap — deux sections : Senior puis Vétérans
         const today = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
         const recapFields = [];
-        for (const { member } of session.rows) {
-            const data = session.doneData[member.id];
-            if (!data) continue;
 
-            let fieldValue =
-                `<@${member.id}>\n` +
-                `> ${data.appreciation}\n` +
-                `${E_PSTAR} **Mention** : <@&${data.mentionRoleId}>`;
+        const seniorRows  = session.rows.filter(r => r.type === 'senior');
+        const veteranRows = session.rows.filter(r => r.type === 'veteran');
 
-            if (data.promo) {
-                fieldValue += `\n${E_ARROW} Bravo tu passes <@&${ROLE_PROMOTION_GS}>`;
+        if (seniorRows.length) {
+            recapFields.push({ name: `🔹 GS Senior`, value: '​', inline: false });
+            for (const { member } of seniorRows) {
+                const data = session.doneData[member.id];
+                if (!data) continue;
+                let fieldValue =
+                    `<@${member.id}>\n` +
+                    `> ${data.appreciation}\n` +
+                    `${E_PSTAR} **Mention** : <@&${data.mentionRoleId}>`;
+                if (data.promo) {
+                    fieldValue += `\n${E_ARROW} Bravo tu passes <@&${ROLE_PROMOTION_GS}>`;
+                }
+                recapFields.push({ name: '​', value: fieldValue, inline: false });
             }
+        }
 
-            recapFields.push({ name: '​', value: fieldValue, inline: false });
+        if (veteranRows.length) {
+            recapFields.push({ name: `⭐ Vétérans`, value: '​', inline: false });
+            for (const { member } of veteranRows) {
+                const data = session.doneData[member.id];
+                if (!data) continue;
+                let fieldValue =
+                    `<@${member.id}>\n` +
+                    `> ${data.appreciation}\n` +
+                    `${E_PSTAR} **Mention** : <@&${data.mentionRoleId}>`;
+                if (data.promo) {
+                    fieldValue += `\n${E_ARROW} Bravo tu passes <@&${ROLE_PROMOTION_VETERAN}>`;
+                }
+                recapFields.push({ name: '​', value: fieldValue, inline: false });
+            }
         }
 
         const recapEmbed = new EmbedBuilder()
-            .setTitle(`${E_POLAROID}  GS Senior — Semaine du ${today}`)
+            .setTitle(`${E_POLAROID}  GS Senior & Vétérans — Semaine du ${today}`)
             .setColor(0x2ecc71)
             .addFields(...recapFields)
             .setFooter({ text: `${recapFields.length} membre${recapFields.length > 1 ? 's' : ''} · Publié par ${interaction.user.displayName}` })
