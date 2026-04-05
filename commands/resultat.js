@@ -21,23 +21,12 @@ const MENTIONS_RESULTAT = [
     { label: '🏆 Excellent',     value: 'Excellent',    roleId: 'ID_ROLE_MENTION_EXCELLENT',    description: 'Performance exceptionnelle' },
 ];
 
-// Mentions pour les Vétérans (même structure que Senior)
-const MENTIONS_RESULTAT_VETERAN = [
-    { label: '⚠️ Attention',    value: 'Attention',    roleId: 'ID_ROLE_MENTION_ATTENTION',    description: 'Comportement à surveiller' },
-    { label: '😐 Satisfaisant', value: 'Satisfaisant', roleId: 'ID_ROLE_MENTION_SATISFAISANT', description: 'Dans les attentes minimales' },
-    { label: '👍 Bien',          value: 'Bien',          roleId: 'ID_ROLE_MENTION_BIEN',          description: 'Bonne semaine' },
-    { label: '⭐ Très bien',     value: 'Très bien',    roleId: 'ID_ROLE_MENTION_TRES_BIEN',    description: 'Au-dessus des attentes' },
-    { label: '🏆 Excellent',     value: 'Excellent',    roleId: 'ID_ROLE_MENTION_EXCELLENT',    description: 'Performance exceptionnelle' },
-];
-
-// Rôles de promotion — remplace par les vrais IDs
-const ROLE_PROMOTION_GS      = 'ID_ROLE_PROMOTION_GS';
-const ROLE_PROMOTION_VETERAN = 'ID_ROLE_PROMOTION_VETERAN';
+// Mentions pour les Vétérans (même liste que Senior)
+const MENTIONS_RESULTAT_VETERAN = MENTIONS_RESULTAT;
 
 // Emojis custom du serveur
 const E_POLAROID = '<:002_polaroid:1352990626664419328>';
 const E_PSTAR    = '<:0001_pstar:1375780054872883271>';
-const E_ARROW    = '<a:B_arrow:1477153945070866592>';
 
 const COLOR = 0x2260da;
 
@@ -69,9 +58,6 @@ function generateTxt(rows, doneData) {
             out += `* *Vocal* :\n`;
             out += `> ${data.appreciation}\n`;
             out += `${E_PSTAR} **Mention** : <@&${data.mentionRoleId}>\n`;
-            if (data.promo) {
-                out += `${E_ARROW} Bravo tu passes <@&${ROLE_PROMOTION_GS}>\n`;
-            }
             out += `\n`;
         }
     }
@@ -86,9 +72,6 @@ function generateTxt(rows, doneData) {
             out += `* *Vocal* :\n`;
             out += `> ${data.appreciation}\n`;
             out += `${E_PSTAR} **Mention** : <@&${data.mentionRoleId}>\n`;
-            if (data.promo) {
-                out += `${E_ARROW} Bravo tu passes <@&${ROLE_PROMOTION_VETERAN}>\n`;
-            }
             out += `\n`;
         }
     }
@@ -251,14 +234,6 @@ module.exports.handleResultatInteraction = async function (interaction, client) 
                     .setRequired(true)
                     .setPlaceholder('Ex : Très bonne semaine dans l\'ensemble, quotas atteints…')
             ),
-            new ActionRowBuilder().addComponents(
-                new TextInputBuilder()
-                    .setCustomId('promo')
-                    .setLabel('Promotion ? (oui / non)')
-                    .setStyle(TextInputStyle.Short)
-                    .setRequired(false)
-                    .setPlaceholder('Laisse vide ou écris "oui" pour une promotion')
-            ),
         );
 
         await interaction.showModal(modal);
@@ -276,8 +251,6 @@ module.exports.handleResultatInteraction = async function (interaction, client) 
         const mentionValue  = parts.slice(3).join(' '); // gère "Très bien"
 
         const appreciation  = interaction.fields.getTextInputValue('appreciation');
-        const promoRaw      = interaction.fields.getTextInputValue('promo') || '';
-        const promo         = promoRaw.trim().toLowerCase() === 'oui';
 
         const mentionsList  = memberType === 'veteran' ? MENTIONS_RESULTAT_VETERAN : MENTIONS_RESULTAT;
         const mentionObj    = mentionsList.find(m => m.value === mentionValue);
@@ -287,7 +260,7 @@ module.exports.handleResultatInteraction = async function (interaction, client) 
 
         if (session) {
             session.doneSet.add(userId);
-            session.doneData[userId] = { appreciation, mentionValue, mentionRoleId, promo, memberType };
+            session.doneData[userId] = { appreciation, mentionValue, mentionRoleId, memberType };
 
             const done    = session.doneSet.size;
             const total   = session.totalMembers;
@@ -379,9 +352,6 @@ module.exports.handleResultatInteraction = async function (interaction, client) 
                     `<@${member.id}>\n` +
                     `> ${data.appreciation}\n` +
                     `${E_PSTAR} **Mention** : <@&${data.mentionRoleId}>`;
-                if (data.promo) {
-                    fieldValue += `\n${E_ARROW} Bravo tu passes <@&${ROLE_PROMOTION_GS}>`;
-                }
                 recapFields.push({ name: '​', value: fieldValue, inline: false });
             }
         }
@@ -395,9 +365,6 @@ module.exports.handleResultatInteraction = async function (interaction, client) 
                     `<@${member.id}>\n` +
                     `> ${data.appreciation}\n` +
                     `${E_PSTAR} **Mention** : <@&${data.mentionRoleId}>`;
-                if (data.promo) {
-                    fieldValue += `\n${E_ARROW} Bravo tu passes <@&${ROLE_PROMOTION_VETERAN}>`;
-                }
                 recapFields.push({ name: '​', value: fieldValue, inline: false });
             }
         }
