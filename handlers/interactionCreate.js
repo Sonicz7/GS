@@ -4,10 +4,7 @@ const { getCompletion } = require('../tasks/weeklyPing');
 const { getSurveillanceCounts } = require('../utils/surveillance');
 
 const MODELE_RAPPORT_SURVEILLANCE =
-`📋 **Rapport de surveillance**await interaction.reply({
-    embeds: [...],
-    ephemeral: true,
-});
+`📋 **Rapport de surveillance**
 Date : \`JJ/MM/AAAA\`
 Heure : \`HH:MM\`
 
