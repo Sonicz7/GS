@@ -43,10 +43,25 @@ function buildDescription(rows, doneSet) {
 
 // ── Génération du .txt final ──────────────────────────────────────────────────
 function generateTxt(rows, doneData) {
-    const seniorRows  = rows.filter(r => r.type === 'senior');
-    const veteranRows = rows.filter(r => r.type === 'veteran');
+    const seniorRows       = rows.filter(r => r.type === 'senior');
+    const veteranRows      = rows.filter(r => r.type === 'veteran');
+    const gestionStaffRows = rows.filter(r => r.type === 'gestionStaff');
 
     let out = '';
+
+    if (veteranRows.length) {
+        out += `# GS VÉTÉRAN ${E_POLAROID}\n`;
+        for (const { member } of veteranRows) {
+            const data = doneData[member.id];
+            if (!data) continue;
+            out += `<@${member.id}>\n`;
+            out += `* *Tickets* :\n`;
+            out += `* *Vocal* :\n`;
+            out += `> ${data.appreciation}\n`;
+            out += `${E_PSTAR} **Mention** : <@&${data.mentionRoleId}>\n`;
+            out += `\n`;
+        }
+    }
 
     if (seniorRows.length) {
         out += `# GS SENIOR ${E_POLAROID}\n`;
@@ -62,9 +77,9 @@ function generateTxt(rows, doneData) {
         }
     }
 
-    if (veteranRows.length) {
-        out += `# GS VÉTÉRAN ${E_POLAROID}\n`;
-        for (const { member } of veteranRows) {
+    if (gestionStaffRows.length) {
+        out += `# GESTION STAFF ${E_POLAROID}\n`;
+        for (const { member } of gestionStaffRows) {
             const data = doneData[member.id];
             if (!data) continue;
             out += `<@${member.id}>\n`;
@@ -104,21 +119,36 @@ module.exports = {
             return message.reply('❌ `ROLE_SENIOR`, `ROLE_VETERAN` ou `ROLE_GESTION_STAFF` manquant dans le `.env`.');
         }
 
+        // Rôles "au-dessus" du vétéran dans la hiérarchie (excluent un vétéran de la liste)
+        const rolesSuperieurVeteran = [roles.responsable, roles.brasDroit, roles.gerant].filter(Boolean);
+
+        // GS Senior : a le rôle senior + gestion staff
         const membresSenior = guild.members.cache.filter(m =>
             !m.user.bot &&
             m.roles.cache.has(roles.senior) &&
             m.roles.cache.has(roles.gestionStaff)
         );
 
+        // GS Vétéran : a le rôle vétéran + gestion staff, sans rôle supérieur, sans senior (évite doublons)
         const membresVeteran = guild.members.cache.filter(m =>
             !m.user.bot &&
             m.roles.cache.has(roles.veteran) &&
             m.roles.cache.has(roles.gestionStaff) &&
-            !m.roles.cache.has(roles.senior) // évite les doublons
+            !m.roles.cache.has(roles.senior) &&
+            !rolesSuperieurVeteran.some(r => m.roles.cache.has(r))
         );
 
-        if (!membresSenior.size && !membresVeteran.size) {
-            return message.reply('❌ Aucun membre trouvé avec les rôles **GS Senior** ou **Vétéran** et **Gestion Staff**.');
+        // Gestion Staff seul : a gestion staff, mais pas senior, pas vétéran, pas de rôle supérieur
+        const membresGestionStaff = guild.members.cache.filter(m =>
+            !m.user.bot &&
+            m.roles.cache.has(roles.gestionStaff) &&
+            !m.roles.cache.has(roles.senior) &&
+            !m.roles.cache.has(roles.veteran) &&
+            !rolesSuperieurVeteran.some(r => m.roles.cache.has(r))
+        );
+
+        if (!membresSenior.size && !membresVeteran.size && !membresGestionStaff.size) {
+            return message.reply('❌ Aucun membre trouvé avec les rôles **GS Senior**, **Vétéran** ou **Gestion Staff**.');
         }
 
         const rows          = [];
@@ -142,11 +172,20 @@ module.exports = {
             });
         });
 
+        membresGestionStaff.forEach(m => {
+            rows.push({ member: m, type: 'gestionStaff' });
+            selectOptions.push({
+                label:       m.displayName.slice(0, 25),
+                description: '📋 Gestion Staff',
+                value:       m.id,
+            });
+        });
+
         const doneSet     = new Set();
         const description = buildDescription(rows, doneSet);
 
         const embed = new EmbedBuilder()
-            .setTitle(`${E_POLAROID}  Résultats GS Senior & Vétérans`)
+            .setTitle(`${E_POLAROID}  Résultats GS Senior, Vétérans & Gestion Staff`)
             .setDescription(description)
             .setColor(COLOR)
             .setFooter({ text: `0/${rows.length} résultat${rows.length > 1 ? 's' : ''} complété${rows.length > 1 ? 's' : ''} · Sélectionne un membre pour rédiger son résultat` });
@@ -204,7 +243,11 @@ module.exports.handleResultatInteraction = async function (interaction, client) 
             })));
 
         await interaction.reply({
-            content: `**Choix de la mention** pour <@${userId}> (${memberType === 'veteran' ? '⭐ Vétéran' : '🔹 Senior'}) :`,
+            content: `**Choix de la mention** pour <@${userId}> (${
+                memberType === 'veteran'      ? '⭐ Vétéran'        :
+                memberType === 'gestionStaff' ? '📋 Gestion Staff'  :
+                                               '🔹 Senior'
+            }) :`,
             components: [new ActionRowBuilder().addComponents(mentionMenu)],
             ephemeral: true,
         });
@@ -223,7 +266,11 @@ module.exports.handleResultatInteraction = async function (interaction, client) 
 
         const modal = new ModalBuilder()
             .setCustomId(`resultat_modal_${userId}_${trackMsgId}_${memberType}_${mentionValue}`)
-            .setTitle(memberType === 'veteran' ? 'Résultat GS Vétéran' : 'Résultat GS Senior');
+            .setTitle(
+                memberType === 'veteran'      ? 'Résultat GS Vétéran'    :
+                memberType === 'gestionStaff' ? 'Résultat Gestion Staff' :
+                                                'Résultat GS Senior'
+            );
 
         modal.addComponents(
             new ActionRowBuilder().addComponents(
@@ -277,7 +324,13 @@ module.exports.handleResultatInteraction = async function (interaction, client) 
 
             const selectOptions = session.rows.map(({ member, type }) => ({
                 label:       member.displayName.slice(0, 25),
-                description: session.doneSet.has(member.id) ? '✅ Complété' : (type === 'veteran' ? '⭐ Vétéran' : 'GS Senior'),
+                description: session.doneSet.has(member.id)
+                    ? '✅ Complété'
+                    : type === 'veteran'
+                        ? '⭐ Vétéran'
+                        : type === 'gestionStaff'
+                            ? '📋 Gestion Staff'
+                            : 'GS Senior',
                 value:       member.id,
             }));
 
@@ -340,21 +393,9 @@ module.exports.handleResultatInteraction = async function (interaction, client) 
 
         const recapFields = [];
 
-        const seniorRows  = session.rows.filter(r => r.type === 'senior');
-        const veteranRows = session.rows.filter(r => r.type === 'veteran');
-
-        if (seniorRows.length) {
-            recapFields.push({ name: `🔹 GS Senior`, value: '​', inline: false });
-            for (const { member } of seniorRows) {
-                const data = session.doneData[member.id];
-                if (!data) continue;
-                let fieldValue =
-                    `<@${member.id}>\n` +
-                    `> ${data.appreciation}\n` +
-                    `${E_PSTAR} **Mention** : <@&${data.mentionRoleId}>`;
-                recapFields.push({ name: '​', value: fieldValue, inline: false });
-            }
-        }
+        const seniorRows       = session.rows.filter(r => r.type === 'senior');
+        const veteranRows      = session.rows.filter(r => r.type === 'veteran');
+        const gestionStaffRows = session.rows.filter(r => r.type === 'gestionStaff');
 
         if (veteranRows.length) {
             recapFields.push({ name: `⭐ Vétérans`, value: '​', inline: false });
@@ -369,8 +410,34 @@ module.exports.handleResultatInteraction = async function (interaction, client) 
             }
         }
 
+        if (seniorRows.length) {
+            recapFields.push({ name: `🔹 GS Senior`, value: '​', inline: false });
+            for (const { member } of seniorRows) {
+                const data = session.doneData[member.id];
+                if (!data) continue;
+                let fieldValue =
+                    `<@${member.id}>\n` +
+                    `> ${data.appreciation}\n` +
+                    `${E_PSTAR} **Mention** : <@&${data.mentionRoleId}>`;
+                recapFields.push({ name: '​', value: fieldValue, inline: false });
+            }
+        }
+
+        if (gestionStaffRows.length) {
+            recapFields.push({ name: `📋 Gestion Staff`, value: '​', inline: false });
+            for (const { member } of gestionStaffRows) {
+                const data = session.doneData[member.id];
+                if (!data) continue;
+                let fieldValue =
+                    `<@${member.id}>\n` +
+                    `> ${data.appreciation}\n` +
+                    `${E_PSTAR} **Mention** : <@&${data.mentionRoleId}>`;
+                recapFields.push({ name: '​', value: fieldValue, inline: false });
+            }
+        }
+
         const recapEmbed = new EmbedBuilder()
-            .setTitle(`${E_POLAROID}  GS Senior & Vétérans — Semaine du ${today}`)
+            .setTitle(`${E_POLAROID}  GS Senior, Vétérans & Gestion Staff — Semaine du ${today}`)
             .setColor(0x2ecc71)
             .addFields(...recapFields)
             .setFooter({ text: `${recapFields.length} membre${recapFields.length > 1 ? 's' : ''} · Publié par ${interaction.user.displayName}` })
