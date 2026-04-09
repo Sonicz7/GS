@@ -24,9 +24,8 @@ const MENTIONS_RESULTAT = [
 // Mentions pour les Vétérans (même liste que Senior)
 const MENTIONS_RESULTAT_VETERAN = MENTIONS_RESULTAT;
 
-// Emojis custom du serveur
-const E_POLAROID = '<:002_polaroid:1352990626664419328>';
-const E_PSTAR    = '<:0001_pstar:1375780054872883271>';
+
+
 
 const COLOR = 0x2260da;
 
@@ -50,7 +49,7 @@ function generateTxt(rows, doneData) {
     let out = '';
 
     if (veteranRows.length) {
-        out += `# GS VÉTÉRAN ${E_POLAROID}\n`;
+        out += `# GS VÉTÉRAN\n`;
         for (const { member } of veteranRows) {
             const data = doneData[member.id];
             if (!data) continue;
@@ -58,13 +57,13 @@ function generateTxt(rows, doneData) {
             out += `* *Tickets* :\n`;
             out += `* *Vocal* :\n`;
             out += `> ${data.appreciation}\n`;
-            out += `${E_PSTAR} **Mention** : <@&${data.mentionRoleId}>\n`;
+            out += `**Mention** : <@&${data.mentionRoleId}>\n`;
             out += `\n`;
         }
     }
 
     if (seniorRows.length) {
-        out += `# GS SENIOR ${E_POLAROID}\n`;
+        out += `# GS SENIOR \n`;
         for (const { member } of seniorRows) {
             const data = doneData[member.id];
             if (!data) continue;
@@ -72,13 +71,13 @@ function generateTxt(rows, doneData) {
             out += `* *Tickets* :\n`;
             out += `* *Vocal* :\n`;
             out += `> ${data.appreciation}\n`;
-            out += `${E_PSTAR} **Mention** : <@&${data.mentionRoleId}>\n`;
+            out += `**Mention** : <@&${data.mentionRoleId}>\n`;
             out += `\n`;
         }
     }
 
     if (gestionStaffRows.length) {
-        out += `# GESTION STAFF ${E_POLAROID}\n`;
+        out += `# GESTION STAFF \n`;
         for (const { member } of gestionStaffRows) {
             const data = doneData[member.id];
             if (!data) continue;
@@ -86,7 +85,7 @@ function generateTxt(rows, doneData) {
             out += `* *Tickets* :\n`;
             out += `* *Vocal* :\n`;
             out += `> ${data.appreciation}\n`;
-            out += `${E_PSTAR} **Mention** : <@&${data.mentionRoleId}>\n`;
+            out += `**Mention** : <@&${data.mentionRoleId}>\n`;
             out += `\n`;
         }
     }
@@ -185,7 +184,7 @@ module.exports = {
         const description = buildDescription(rows, doneSet);
 
         const embed = new EmbedBuilder()
-            .setTitle(`${E_POLAROID}  Résultats GS Senior, Vétérans & Gestion Staff`)
+            .setTitle(`Résultats GS Senior, Vétérans & Gestion Staff`)
             .setDescription(description)
             .setColor(COLOR)
             .setFooter({ text: `0/${rows.length} résultat${rows.length > 1 ? 's' : ''} complété${rows.length > 1 ? 's' : ''} · Sélectionne un membre pour rédiger son résultat` });
@@ -314,7 +313,7 @@ module.exports.handleResultatInteraction = async function (interaction, client) 
             const allDone = done >= total;
 
             const updatedEmbed = new EmbedBuilder()
-                .setTitle(`${E_POLAROID}  Résultats GS Senior & Vétérans`)
+                .setTitle(`Résultats GS Senior & Vétérans`)
                 .setDescription(buildDescription(session.rows, session.doneSet))
                 .setColor(allDone ? 0x2ecc71 : COLOR)
                 .setFooter({
@@ -405,7 +404,7 @@ module.exports.handleResultatInteraction = async function (interaction, client) 
                 let fieldValue =
                     `<@${member.id}>\n` +
                     `> ${data.appreciation}\n` +
-                    `${E_PSTAR} **Mention** : <@&${data.mentionRoleId}>`;
+                    `**Mention** : <@&${data.mentionRoleId}>`;
                 recapFields.push({ name: '​', value: fieldValue, inline: false });
             }
         }
@@ -418,7 +417,7 @@ module.exports.handleResultatInteraction = async function (interaction, client) 
                 let fieldValue =
                     `<@${member.id}>\n` +
                     `> ${data.appreciation}\n` +
-                    `${E_PSTAR} **Mention** : <@&${data.mentionRoleId}>`;
+                    `**Mention** : <@&${data.mentionRoleId}>`;
                 recapFields.push({ name: '​', value: fieldValue, inline: false });
             }
         }
@@ -431,13 +430,13 @@ module.exports.handleResultatInteraction = async function (interaction, client) 
                 let fieldValue =
                     `<@${member.id}>\n` +
                     `> ${data.appreciation}\n` +
-                    `${E_PSTAR} **Mention** : <@&${data.mentionRoleId}>`;
+                    `**Mention** : <@&${data.mentionRoleId}>`;
                 recapFields.push({ name: '​', value: fieldValue, inline: false });
             }
         }
 
         const recapEmbed = new EmbedBuilder()
-            .setTitle(`${E_POLAROID}  GS Senior, Vétérans & Gestion Staff — Semaine du ${today}`)
+            .setTitle(`GS Senior, Vétérans & Gestion Staff — Semaine du ${today}`)
             .setColor(0x2ecc71)
             .addFields(...recapFields)
             .setFooter({ text: `${recapFields.length} membre${recapFields.length > 1 ? 's' : ''} · Publié par ${interaction.user.displayName}` })
