@@ -313,7 +313,7 @@ module.exports.handleResultatInteraction = async function (interaction, client) 
             const allDone = done >= total;
 
             const updatedEmbed = new EmbedBuilder()
-                .setTitle(`Résultats GS Senior & Vétérans`)
+                .setTitle(`Résultats GS`)
                 .setDescription(buildDescription(session.rows, session.doneSet))
                 .setColor(allDone ? 0x2ecc71 : COLOR)
                 .setFooter({
