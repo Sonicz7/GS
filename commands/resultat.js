@@ -308,6 +308,15 @@ module.exports.handleResultatInteraction = async function (interaction, client) 
 
         const session = resultatSessions.get(trackMsgId);
 
+        console.log(`[RESULTAT] Modal submit — userId=${userId} trackMsgId=${trackMsgId} memberType=${memberType} mentionValue=${mentionValue}`);
+        console.log(`[RESULTAT] Sessions actives :`, [...resultatSessions.keys()]);
+        console.log(`[RESULTAT] Session trouvée :`, !!session);
+
+        if (!session) {
+            await interaction.reply({ content: '❌ Session expirée ou introuvable. Relance `=resultat`.', ephemeral: true });
+            return true;
+        }
+
         if (session) {
             session.doneSet.add(userId);
             session.doneData[userId] = { appreciation, mentionValue, mentionRoleId, memberType };
@@ -317,7 +326,7 @@ module.exports.handleResultatInteraction = async function (interaction, client) 
             const allDone = done >= total;
 
             const updatedEmbed = new EmbedBuilder()
-                .setTitle(`Résultats GS Senior & Vétérans`)
+                .setTitle(`Résultats GS Senior, Vétérans & Gestion Staff`)
                 .setDescription(buildDescription(session.rows, session.doneSet))
                 .setColor(allDone ? 0x2ecc71 : COLOR)
                 .setFooter({
