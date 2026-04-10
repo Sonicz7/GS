@@ -111,12 +111,16 @@ module.exports = {
             return message.reply({ embeds: [e] });
         }
 
-        // Récupération des membres GS Senior + Vétéran avec Gestion Staff
-        await guild.members.fetch();
-
         if (!roles.senior || !roles.veteran || !roles.gestionStaff) {
             return message.reply('❌ `ROLE_SENIOR`, `ROLE_VETERAN` ou `ROLE_GESTION_STAFF` manquant dans le `.env`.');
         }
+
+        // Récupération ciblée par rôle pour éviter le rate limit (opcode 8)
+        await Promise.all([
+            guild.members.fetch({ role: roles.gestionStaff }).catch(() => null),
+            guild.members.fetch({ role: roles.senior }).catch(() => null),
+            guild.members.fetch({ role: roles.veteran }).catch(() => null),
+        ]);
 
         // Rôles "au-dessus" du vétéran dans la hiérarchie (excluent un vétéran de la liste)
         const rolesSuperieurVeteran = [roles.responsable, roles.brasDroit, roles.gerant].filter(Boolean);
@@ -313,7 +317,7 @@ module.exports.handleResultatInteraction = async function (interaction, client) 
             const allDone = done >= total;
 
             const updatedEmbed = new EmbedBuilder()
-                .setTitle(`Résultats GS`)
+                .setTitle(`Résultats GS Senior & Vétérans`)
                 .setDescription(buildDescription(session.rows, session.doneSet))
                 .setColor(allDone ? 0x2ecc71 : COLOR)
                 .setFooter({
