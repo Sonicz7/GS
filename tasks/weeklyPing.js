@@ -90,6 +90,17 @@ function getMemberOverwrite(channel, guild) {
     });
 }
 
+// ── Cache membres centralisé (évite le rate limit opcode 8) ─────────────────
+let _lastMemberFetch = 0;
+async function ensureMembersCache(guild) {
+    const now = Date.now();
+    // Re-fetch seulement si le cache a plus de 10 minutes
+    if (now - _lastMemberFetch < 10 * 60 * 1000) return;
+    await guild.members.fetch();
+    _lastMemberFetch = now;
+    console.log('[WEEKLY] Membres re-fetchés depuis Discord.');
+}
+
 async function sendWeeklyPings(client) {
     const { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
     const guild = client.guilds.cache.get(guildId);
@@ -98,8 +109,8 @@ async function sendWeeklyPings(client) {
     const category = guild.channels.cache.get(categories.rapportsPersonnels);
     if (!category) return console.warn('[WEEKLY] Catégorie rapports introuvable.');
 
-    // Charger tous les membres pour que le cache soit complet
-    await guild.members.fetch();
+    await ensureMembersCache(guild);
+
 
     const rapportChannels = guild.channels.cache.filter(c => c.parentId === category.id && c.name.startsWith('rp-'));
     if (!rapportChannels.size) return console.warn('[WEEKLY] Aucun salon rp- trouvé.');
@@ -147,7 +158,7 @@ async function sendReminderAt16(client) {
     const category = guild.channels.cache.get(categories.rapportsPersonnels);
     if (!category) return;
 
-    await guild.members.fetch();
+    await ensureMembersCache(guild);
 
     const rapportChannels = guild.channels.cache.filter(c => c.parentId === category.id && c.name.startsWith('rp-'));
 
@@ -191,7 +202,7 @@ async function sendRecapAt17(client) {
     const category = guild.channels.cache.get(categories.rapportsPersonnels);
     if (!category) return;
 
-    await guild.members.fetch();
+    await ensureMembersCache(guild);
 
     const rapportChannels = guild.channels.cache.filter(c => c.parentId === category.id && c.name.startsWith('rp-'));
     const lines = [];
@@ -231,7 +242,7 @@ async function sendRecapAt18(client) {
     const category = guild.channels.cache.get(categories.rapportsPersonnels);
     if (!category) return;
 
-    await guild.members.fetch();
+    await ensureMembersCache(guild);
 
     const rapportChannels = guild.channels.cache.filter(c => c.parentId === category.id && c.name.startsWith('rp-'));
     if (!rapportChannels.size) return;
