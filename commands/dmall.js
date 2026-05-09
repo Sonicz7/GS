@@ -123,11 +123,26 @@ function buildDmEmbed(sender, type, message) {
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('dmall')
-        .setDescription('Envoyer un message en DM à un ou plusieurs groupes de la GS')
-        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+        .setDescription('Envoyer un message en DM à un ou plusieurs groupes de la GS'),
 
     // ── Exécution de la commande ──────────────────────────────────────────────
     async execute(interaction) {
+        // Seuls Bras Droit et Gérant peuvent utiliser cette commande
+        const ROLES_AUTORISES = [
+            '1487760981021950107', // Bras Droit
+            '1487761085082898463', // Gérant
+        ];
+        const aAcces = ROLES_AUTORISES.some(id => interaction.member.roles.cache.has(id));
+        if (!aAcces) {
+            return interaction.reply({
+                embeds: [
+                    new EmbedBuilder()
+                        .setDescription('❌ Tu n\'as pas la permission d\'utiliser cette commande.')
+                        .setColor(0xe74c3c),
+                ],
+                ephemeral: true,
+            });
+        }
         // Étape 1 : sélection des rôles
         const selectMenu = new StringSelectMenuBuilder()
             .setCustomId('dmall_select_roles')
