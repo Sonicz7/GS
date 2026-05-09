@@ -1,5 +1,6 @@
 const { EmbedBuilder } = require('discord.js');
 const { gsHierarchy, roles, channels } = require('../config');
+const { ensureMembersCache } = require('./memberCache');
 
 /**
  * Retourne le rang GS le plus élevé détenu par un membre.
@@ -29,7 +30,7 @@ async function updateListeGs(guild) {
     }
 
     // Récupère tous les membres du serveur (cache à jour)
-    await guild.members.fetch();
+    await ensureMembersCache(guild);
 
     // Regroupe les membres par catégorie
     const groupes = {};
