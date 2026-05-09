@@ -2,8 +2,6 @@ const { Events, PermissionFlagsBits, EmbedBuilder, ActionRowBuilder, ButtonBuild
 const { roles, categories } = require('../config');
 const { getCompletion } = require('../tasks/weeklyPing');
 const { getSurveillanceCounts } = require('../utils/surveillance');
-const { handleInteraction: handleDmall } = require('../commands/dmall');
-
 const MODELE_RAPPORT_SURVEILLANCE =
 `📋 **Rapport de surveillance**
 Date : \`JJ/MM/AAAA\`
@@ -258,15 +256,20 @@ module.exports = {
 
     async execute(interaction, client) {
         // ── Interactions /dmall ───────────────────────────────────────────────
-        if (
+        const isDmall =
             (interaction.isStringSelectMenu() && interaction.customId === 'dmall_select_roles') ||
             (interaction.isModalSubmit()       && interaction.customId.startsWith('dmall_modal_')) ||
             (interaction.isModalSubmit()       && interaction.customId.startsWith('dmall_replymodal_')) ||
             (interaction.isButton()            && interaction.customId.startsWith('dmall_type_')) ||
             (interaction.isButton()            && interaction.customId.startsWith('dmall_reply_')) ||
-            (interaction.isButton()            && interaction.customId.startsWith('dmall_read_'))
-        ) {
-            await handleDmall(interaction).catch(err => console.error('[DMALL] Erreur interaction :', err));
+            (interaction.isButton()            && interaction.customId.startsWith('dmall_read_'));
+        if (isDmall) {
+            try {
+                const { handleInteraction: handleDmall } = require('../commands/dmall');
+                await handleDmall(interaction);
+            } catch (err) {
+                console.error('[DMALL] Erreur interaction :', err);
+            }
             return;
         }
 
