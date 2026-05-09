@@ -2,6 +2,7 @@ const { Events, PermissionFlagsBits, EmbedBuilder, ActionRowBuilder, ButtonBuild
 const { roles, categories } = require('../config');
 const { getCompletion } = require('../tasks/weeklyPing');
 const { getSurveillanceCounts } = require('../utils/surveillance');
+const { handleInteraction: handleDmall } = require('../commands/dmall');
 
 const MODELE_RAPPORT_SURVEILLANCE =
 `📋 **Rapport de surveillance**
@@ -200,8 +201,8 @@ async function handleQuestionnaireReply(message, client) {
             .setFooter({ text: session.type === 'rapport' ? 'Rapport hebdomadaire' : 'Stats & Heures de voc' });
 
         const guild         = client.guilds.cache.get(session.guildId);
-const ticketChannel = guild?.channels.cache.get(session.channelId);
-await (ticketChannel ?? message.channel).send({ embeds: [embed] });
+        const ticketChannel = guild?.channels.cache.get(session.channelId);
+        await (ticketChannel ?? message.channel).send({ embeds: [embed] });
         return true;
     }
 
@@ -256,6 +257,19 @@ module.exports = {
     QUESTIONS_ECRITES,
 
     async execute(interaction, client) {
+        // ── Interactions /dmall ───────────────────────────────────────────────
+        if (
+            (interaction.isStringSelectMenu() && interaction.customId === 'dmall_select_roles') ||
+            (interaction.isModalSubmit()       && interaction.customId.startsWith('dmall_modal_')) ||
+            (interaction.isModalSubmit()       && interaction.customId.startsWith('dmall_replymodal_')) ||
+            (interaction.isButton()            && interaction.customId.startsWith('dmall_type_')) ||
+            (interaction.isButton()            && interaction.customId.startsWith('dmall_reply_')) ||
+            (interaction.isButton()            && interaction.customId.startsWith('dmall_read_'))
+        ) {
+            await handleDmall(interaction).catch(err => console.error('[DMALL] Erreur interaction :', err));
+            return;
+        }
+
         // ── Interactions =resultat ────────────────────────────────────────────
         const { handleResultatInteraction } = require('../commands/resultat');
         const handledByResultat = await handleResultatInteraction(interaction, client).catch(err => {
@@ -490,19 +504,15 @@ module.exports = {
 
                 // Le ping est dans la value pour qu'il s'affiche en bleu cliquable
                 let fieldValue =
-                    `<@${member.id}> · *${rang}*
-` +
-                    `${data.avis}
-` +
+                    `<@${member.id}> · *${rang}*\n` +
+                    `${data.avis}\n` +
                     `${mentionEmoji} **${data.mention}** · ${nb} surveillance${nb !== 1 ? 's' : ''}`;
 
                 if (data.surveillance) {
-                    fieldValue += `
-${data.surveillance}`;
+                    fieldValue += `\n${data.surveillance}`;
                 }
 
-                fieldValue += `
--# Rédigé par <@${data.veteranId}>`;
+                fieldValue += `\n-# Rédigé par <@${data.veteranId}>`;
 
                 fields.push({
                     name: '​',  // champ sans titre visible
