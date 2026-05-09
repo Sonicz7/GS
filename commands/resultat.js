@@ -10,6 +10,7 @@ const {
     AttachmentBuilder,
 } = require('discord.js');
 const { roles } = require('../config');
+const { ensureMembersCache } = require('../utils/memberCache');
 
 // ── Mentions — menu déroulant identique à =rapport ───────────────────────────
 // Remplace chaque roleId par le vrai ID du rôle de mention sur ton serveur
