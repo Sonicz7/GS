@@ -1,13 +1,9 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, Collection } = require('discord.js');
-const keep_alive = require('./keep_alive.js');
+const { Client, GatewayIntentBits, Collection, REST, Routes } = require('discord.js');
 const fs   = require('fs');
 const path = require('path');
-const { token } = require('./config');
+const { token, clientId, guildId } = require('./config');
 const { startWeeklyTask } = require('./tasks/weeklyPing');
-
-// Démarrer le serveur HTTP pour Render
-keep_alive();
 
 const client = new Client({
     intents: [
@@ -20,16 +16,18 @@ const client = new Client({
 
 client.commands = new Collection();
 
-// Chargement des commandes
+// ── Chargement des commandes ──────────────────────────────────────────────────
 const commandsPath = path.join(__dirname, 'commands');
-for (const file of fs.readdirSync(commandsPath).filter(f => f.endsWith('.js'))) {
+const commandFiles = fs.readdirSync(commandsPath).filter(f => f.endsWith('.js'));
+
+for (const file of commandFiles) {
     const command = require(path.join(commandsPath, file));
     if (command.name && command.execute) {
         client.commands.set(command.name, command);
     }
 }
 
-// Chargement des handlers
+// ── Chargement des handlers ───────────────────────────────────────────────────
 const handlersPath = path.join(__dirname, 'handlers');
 for (const file of fs.readdirSync(handlersPath).filter(f => f.endsWith('.js'))) {
     const handler = require(path.join(handlersPath, file));
@@ -38,8 +36,27 @@ for (const file of fs.readdirSync(handlersPath).filter(f => f.endsWith('.js'))) 
     }
 }
 
-client.once('ready', () => {
+// ── Auto-deploy des slash commands au démarrage ───────────────────────────────
+async function deployCommands() {
+    const commands = [];
+    for (const file of commandFiles) {
+        const command = require(path.join(commandsPath, file));
+        if (command.data) commands.push(command.data.toJSON());
+    }
+
+    const rest = new REST({ version: '10' }).setToken(token);
+    try {
+        console.log(`[DEPLOY] Déploiement de ${commands.length} commande(s)...`);
+        await rest.put(Routes.applicationGuildCommands(clientId, guildId), { body: commands });
+        console.log('[DEPLOY] Commandes déployées avec succès.');
+    } catch (err) {
+        console.error('[DEPLOY] Erreur :', err);
+    }
+}
+
+client.once('ready', async () => {
     console.log(`[BOT] Connecté en tant que ${client.user.tag}`);
+    await deployCommands();
     startWeeklyTask(client);
 });
 
