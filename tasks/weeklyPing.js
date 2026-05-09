@@ -90,16 +90,7 @@ function getMemberOverwrite(channel, guild) {
     });
 }
 
-// ── Cache membres centralisé (évite le rate limit opcode 8) ─────────────────
-let _lastMemberFetch = 0;
-async function ensureMembersCache(guild) {
-    const now = Date.now();
-    // Re-fetch seulement si le cache a plus de 10 minutes
-    if (now - _lastMemberFetch < 10 * 60 * 1000) return;
-    await guild.members.fetch();
-    _lastMemberFetch = now;
-    console.log('[WEEKLY] Membres re-fetchés depuis Discord.');
-}
+const { ensureMembersCache } = require('../utils/memberCache');
 
 async function sendWeeklyPings(client) {
     const { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
