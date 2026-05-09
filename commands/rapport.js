@@ -1,6 +1,7 @@
 const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
 const { categories, gsHierarchy, roles } = require('../config');
 const { getSurveillanceCounts } = require('../utils/surveillance');
+const { ensureMembersCache } = require('../utils/memberCache');
 
 // ── Construit la description de l'embed avec les statuts ✅/❌ ─────────────────
 function buildDescription(rows, doneSet) {
@@ -16,7 +17,7 @@ module.exports = {
     async execute(message) {
         const { guild } = message;
 
-        await guild.members.fetch();
+        await ensureMembersCache(guild);
 
         const surveillancesCategory = guild.channels.cache.get(categories.surveillances);
         if (!surveillancesCategory) return message.reply('Catégorie de surveillance introuvable.');

@@ -116,11 +116,7 @@ module.exports = {
         }
 
         // Récupération ciblée par rôle pour éviter le rate limit (opcode 8)
-        await Promise.all([
-            guild.members.fetch({ role: roles.gestionStaff }).catch(() => null),
-            guild.members.fetch({ role: roles.senior }).catch(() => null),
-            guild.members.fetch({ role: roles.veteran }).catch(() => null),
-        ]);
+        await ensureMembersCache(guild);
 
         // Rôles "au-dessus" du vétéran dans la hiérarchie (excluent un vétéran de la liste)
         const rolesSuperieurVeteran = [roles.responsable, roles.brasDroit, roles.gerant].filter(Boolean);
