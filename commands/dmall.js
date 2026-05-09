@@ -10,6 +10,7 @@ const {
     TextInputStyle,
     PermissionFlagsBits,
 } = require('discord.js');
+const { ensureMembersCache } = require('../utils/memberCache');
 
 // ── IDs des rôles hiérarchiques ───────────────────────────────────────────────
 const ROLE_GESTION_STAFF = '1487759613649617057'; // rôle de base — tout le monde l'a
@@ -264,7 +265,7 @@ module.exports = {
             const { message, selectedRoles } = pending;
 
             await interaction.deferUpdate();
-            await interaction.guild.members.fetch();
+            await ensureMembersCache(interaction.guild);
 
             const targets = getMembersForRoles(interaction.guild, selectedRoles)
                 .map(m => ({
