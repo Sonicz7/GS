@@ -22,8 +22,10 @@ const commandFiles = fs.readdirSync(commandsPath).filter(f => f.endsWith('.js'))
 
 for (const file of commandFiles) {
     const command = require(path.join(commandsPath, file));
-    if (command.name && command.execute) {
-        client.commands.set(command.name, command);
+    // Supporte les slash commands (data.name) et les commandes legacy (name)
+    const name = command.data?.name ?? command.name;
+    if (name && command.execute) {
+        client.commands.set(name, command);
     }
 }
 
