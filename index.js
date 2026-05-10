@@ -33,10 +33,12 @@ const client = new Client({
 client.commands = new Collection();
 
 // ── Chargement des commandes ──────────────────────────────────────────────────
+console.log('[DEBUG] Chargement des commandes...');
 const commandsPath = path.join(__dirname, 'commands');
 const commandFiles = fs.readdirSync(commandsPath).filter(f => f.endsWith('.js'));
 
 for (const file of commandFiles) {
+    console.log('[DEBUG] Chargement commande:', file);
     const command = require(path.join(commandsPath, file));
     const name = command.data?.name ?? command.name;
     if (name && command.execute) {
@@ -45,13 +47,17 @@ for (const file of commandFiles) {
 }
 
 // ── Chargement des handlers ───────────────────────────────────────────────────
+console.log('[DEBUG] Chargement des handlers...');
 const handlersPath = path.join(__dirname, 'handlers');
 for (const file of fs.readdirSync(handlersPath).filter(f => f.endsWith('.js'))) {
+    console.log('[DEBUG] Chargement handler:', file);
     const handler = require(path.join(handlersPath, file));
     if (handler.name && handler.execute) {
         client.on(handler.name, (...args) => handler.execute(...args, client));
     }
 }
+
+console.log('[DEBUG] Tentative de login Discord...');
 
 // ── Auto-deploy des slash commands au démarrage ───────────────────────────────
 async function deployCommands() {
@@ -94,4 +100,6 @@ client.once('ready', async () => {
     startWeeklyTask(client);
 });
 
-client.login(token);
+client.login(token)
+    .then(() => console.log('[DEBUG] Login réussi, en attente du ready...'))
+    .catch(err => console.error('[FATAL] Login échoué:', err.message));
