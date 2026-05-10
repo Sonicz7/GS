@@ -1,4 +1,18 @@
 require('dotenv').config();
+
+// ── Capture toutes les erreurs non gérées ─────────────────────────────────────
+process.on('uncaughtException', err => {
+    console.error('[FATAL] uncaughtException:', err);
+});
+process.on('unhandledRejection', (reason) => {
+    console.error('[FATAL] unhandledRejection:', reason);
+});
+
+// ── Debug variables d'environnement ──────────────────────────────────────────
+console.log('[DEBUG] DISCORD_TOKEN présent :', !!process.env.DISCORD_TOKEN);
+console.log('[DEBUG] CLIENT_ID :', process.env.CLIENT_ID);
+console.log('[DEBUG] GUILD_ID :', process.env.GUILD_ID);
+
 const keepAlive = require('./keep_alive');
 keepAlive();
 const { Client, GatewayIntentBits, Collection, REST, Routes } = require('discord.js');
