@@ -13,7 +13,6 @@ const path = require('path');
 const http = require('http');
 const { token, clientId, guildId } = require('./config');
 const { startWeeklyTask } = require('./tasks/weeklyPing');
-
 // ── Serveur HTTP pour Render ──────────────────────────────────────────────────
 const PORT = process.env.PORT || 10000;
 http.createServer((req, res) => {
