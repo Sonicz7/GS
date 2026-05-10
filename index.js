@@ -2,10 +2,10 @@ require('dotenv').config();
 
 // ── Capture toutes les erreurs non gérées ─────────────────────────────────────
 process.on('uncaughtException', err => {
-    console.error('[FATAL] uncaughtException:', err);
+    console.error('[FATAL] uncaughtException:', err.message, err.code);
 });
 process.on('unhandledRejection', (reason) => {
-    console.error('[FATAL] unhandledRejection:', reason);
+    console.error('[FATAL] unhandledRejection:', reason?.message ?? reason);
 });
 
 // ── Debug variables d'environnement ──────────────────────────────────────────
@@ -59,35 +59,20 @@ for (const file of fs.readdirSync(handlersPath).filter(f => f.endsWith('.js'))) 
 
 console.log('[DEBUG] Tentative de login Discord...');
 
-// ── Auto-deploy des slash commands au démarrage ───────────────────────────────
-async function deployCommands() {
-    const commands = [];
-    for (const file of commandFiles) {
-        const command = require(path.join(commandsPath, file));
-        if (command.data) commands.push(command.data.toJSON());
-    }
-    const rest = new REST({ version: '10' }).setToken(token);
-    try {
-        console.log(`[DEPLOY] Déploiement de ${commands.length} commande(s)...`);
-        await rest.put(Routes.applicationGuildCommands(clientId, guildId), { body: commands });
-        console.log('[DEPLOY] Commandes déployées avec succès.');
-    } catch (err) {
-        console.error('[DEPLOY] Erreur :', err);
-    }
-}
+// Timeout 30s pour détecter un blocage WebSocket
+const loginTimeout = setTimeout(() => {
+    console.error('[FATAL] Login timeout après 30s — WebSocket bloqué par Render ou token invalide');
+    process.exit(1);
+}, 30000);
 
 client.once('ready', async () => {
+    clearTimeout(loginTimeout);
     console.log(`[BOT] Connecté en tant que ${client.user.tag}`);
 
-    // ── Fetch unique des membres au démarrage ─────────────────────────────────
-    // On pré-remplit le cache ici une seule fois, ce qui évite que toutes les
-    // tâches weekly se battent pour faire guild.members.fetch() en même temps.
     try {
         const guild = client.guilds.cache.get(guildId);
         if (guild) {
             await guild.members.fetch();
-            // Marquer le timestamp dans memberCache pour que les fonctions
-            // ne refetchent pas pendant les 10 prochaines minutes
             const { markFetched } = require('./utils/memberCache');
             markFetched(guild.id);
             console.log('[BOT] Cache membres initialisé.');
@@ -100,6 +85,26 @@ client.once('ready', async () => {
     startWeeklyTask(client);
 });
 
+async function deployCommands() {
+    const commands = [];
+    for (const file of commandFiles) {
+        const command = require(path.join(commandsPath, file));
+        if (command.data) commands.push(command.data.toJSON());
+    }
+    const rest = new REST({ version: '10' }).setToken(token);
+    try {
+        console.log(`[DEPLOY] Déploiement de ${commands.length} commande(s)...`);
+        await rest.put(Routes.applicationGuildCommands(clientId, guildId), { body: commands });
+        console.log('[DEPLOY] Commandes déployées avec succès.');
+    } catch (err) {
+        console.error('[DEPLOY] Erreur :', err.message);
+    }
+}
+
 client.login(token)
-    .then(() => console.log('[DEBUG] Login réussi, en attente du ready...'))
-    .catch(err => console.error('[FATAL] Login échoué:', err.message));
+    .then(() => console.log('[DEBUG] Login call accepté...'))
+    .catch(err => {
+        clearTimeout(loginTimeout);
+        console.error('[FATAL] Login échoué:', err.message, err.code);
+        process.exit(1);
+    });
